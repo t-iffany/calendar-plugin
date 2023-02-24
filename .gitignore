@@ -1,0 +1,12 @@
+# exclude credentials file with Client ID and Client secret
+credentials.json
+
+# exclude node modules
+node_modules/
+
+# exclude package-lock.json
+package-lock.json
+
+# exclude token.js, contains access token that is used 
+# to authenticate with the Google Workspace API
+token.json
