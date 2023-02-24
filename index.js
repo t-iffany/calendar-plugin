@@ -1,9 +1,10 @@
 const fs = require('fs').promises;
 const path = require('path');
 const process = require('process');
-const {authenticate} = require('@google-cloud/local-auth');
-const {google} = require('googleapis');
+const { authenticate } = require('@google-cloud/local-auth');
+const { google } = require('googleapis');
 const { calendar } = require('googleapis/build/src/apis/calendar');
+const { startOfDay, endOfDay, startOfHour, endOfHour, parseISO, isWithinInterval } = require('date-fns');
 
 // If modifying these scopes, delete token.json.
 const SCOPES = ['https://www.googleapis.com/auth/calendar.readonly'];
@@ -97,27 +98,94 @@ async function authorize() {
 Use Freebusy method to query the free/busy status of a set of calendars for a specific time range
 
 */
-// Define the time range to check
-const start = new Date('2023-03-01T00:00:00Z').toISOString();
-const end = new Date('2023-03-31T23:59:59Z').toISOString();
 
-// Create a FreebusyRequest object that includes calendar IDs of calendars to check
-// Set up request to check free/busy status for those calendars
-const request = {
-  timeMin: start,
-  timeMax: end,
-  timeZone: 'UTC',
-  items: [
-    {id: 'primary'},
-    {id: ''}
-    // add more calendars as needed
-  ],
-};
+async function listAvailability(auth) {
 
-// Call freebusy.query method with the request object
-const response = await calendar.freebusy.query({
-  requestBody: request,
-});
+  // Create an instance of the calendar API and set its version and auth parameters
+  const calendar = google.calendar({ version: 'v3', auth });
 
-// Extract free/busy status from calendars
-const busyTimes = response.data.calendars;
+  // Define the time range to check
+  const start = startOfDay(parseISO('2023-03-01T00:00:00Z'));
+  const end = endOfDay(parseISO('2023-03-05T23:59:59Z'));
+
+  console.log('start: ', start);
+  console.log('end: ', end);
+
+  // Create a FreebusyRequest object that includes calendar IDs of calendars to check
+  // Set up request to check free/busy status for those calendars
+  const request = {
+    timeMin: start.toISOString(),
+    timeMax: end.toISOString(),
+    timeZone: 'UTC',
+    items: [
+      { id: 'primary' },
+      // Add friend's calendar IDs to the request
+      // ...friendAvailability.map((availability) => {
+      //   return { id: availability.calendarId };
+      // })
+      { id: 'udonthecoton@gmail.com' },
+      // add more calendars as needed
+    ],
+  };
+
+  // Call freebusy.query method with the request object
+  const response = await calendar.freebusy.query({
+    requestBody: request,
+  });
+
+  // Extract free/busy status from calendars
+  const busyTimes = response.data.calendars;
+
+  // Convert busy times to moment ranges
+  const busyRanges = Object.entries(busyTimes).map(([id, busy]) => {
+    // Check whether busy array is empty
+    if (Array.isArray(busy.busy) && busy.busy.length > 0) {
+      const busyStart = parseISO(busy.busy[0].start);
+      const busyEnd = parseISO(busy.busy[0].end);
+      return { start: startOfHour(busyStart), end: endOfHour(busyEnd) };
+    } else {
+      return null;
+    }
+  }).filter((busyRange) => {
+    return busyRange !== null;
+  });
+
+  console.log('busyRanges:', busyRanges);
+
+  // Find overlapping ranges
+  const overlaps = busyRanges.reduce((acc, curr) => {
+    const overlappingStart = acc.start > curr.start ? acc.start : curr.start;
+    const overlappingEnd = acc.end < curr.end ? acc.end : curr.end;
+    if (overlappingStart < overlappingEnd) {
+      return { start: overlappingStart, end: overlappingEnd };
+    } else {
+      return null;
+    }
+  });
+
+  console.log('overlaps:', overlaps);
+
+  // Convert overlapping ranges to array of suggested meeting times (days all users are available)
+  // after removing the busy slots of both calendars
+  const meetingTimes = [];
+  let currentDate = overlaps.start;
+  while (currentDate <= overlaps.end) {
+    const currentDayStart = startOfDay(currentDate);
+    const currentDayEnd = endOfDay(currentDate);
+    const isAvailable = busyRanges.every((busyRange) => {
+      return !isWithinInterval(currentDayStart, { start: busyRange.start, end: busyRange.end }) && !isWithinInterval(currentDayEnd, { start: busyRange.start, end: busyRange.end });
+    });
+    if (isAvailable) {
+      meetingTimes.push({ start: currentDayStart.toISOString(), end: currentDayEnd.toISOString() });
+    }
+    currentDate = new Date(currentDate.getTime() + 24 * 60 * 60 * 1000);
+  }
+  console.log('meetingTimes:', meetingTimes);
+  return meetingTimes;
+}
+
+authorize().then((auth) => {
+  listAvailability(auth).then((meetingTimes) => {
+    console.log(meetingTimes);
+  }).catch(console.error);
+}).catch(console.error);

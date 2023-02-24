@@ -1,7 +1,7 @@
 {
   "dependencies": {
     "@google-cloud/local-auth": "^2.1.0",
-    "googleapis": "^105.0.0",
-    "moment-range": "^4.0.2"
+    "date-fns": "^2.29.3",
+    "googleapis": "^105.0.0"
   }
 }
