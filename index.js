@@ -3,6 +3,7 @@ const path = require('path');
 const process = require('process');
 const {authenticate} = require('@google-cloud/local-auth');
 const {google} = require('googleapis');
+const { calendar } = require('googleapis/build/src/apis/calendar');
 
 // If modifying these scopes, delete token.json.
 const SCOPES = ['https://www.googleapis.com/auth/calendar.readonly'];
@@ -69,25 +70,54 @@ async function authorize() {
  * Lists the next 10 events on the user's primary calendar.
  * @param {google.auth.OAuth2} auth An authorized OAuth2 client.
  */
-async function listEvents(auth) {
-  const calendar = google.calendar({version: 'v3', auth});
-  const res = await calendar.events.list({
-    calendarId: 'primary',
-    timeMin: new Date().toISOString(),
-    maxResults: 10,
-    singleEvents: true,
-    orderBy: 'startTime',
-  });
-  const events = res.data.items;
-  if (!events || events.length === 0) {
-    console.log('No upcoming events found.');
-    return;
-  }
-  console.log('Upcoming 10 events:');
-  events.map((event, i) => {
-    const start = event.start.dateTime || event.start.date;
-    console.log(`${start} - ${event.summary}`);
-  });
-}
+// async function listEvents(auth) {
+//   const calendar = google.calendar({version: 'v3', auth});
+//   const res = await calendar.events.list({
+//     calendarId: 'primary',
+//     timeMin: new Date().toISOString(),
+//     maxResults: 10,
+//     singleEvents: true,
+//     orderBy: 'startTime',
+//   });
+//   const events = res.data.items;
+//   if (!events || events.length === 0) {
+//     console.log('No upcoming events found.');
+//     return;
+//   }
+//   console.log('Upcoming 10 events:');
+//   events.map((event, i) => {
+//     const start = event.start.dateTime || event.start.date;
+//     console.log(`${start} - ${event.summary}`);
+//   });
+// }
 
-authorize().then(listEvents).catch(console.error);
+// authorize().then(listEvents).catch(console.error);
+
+/*
+Use Freebusy method to query the free/busy status of a set of calendars for a specific time range
+
+*/
+// Define the time range to check
+const start = new Date('2023-03-01T00:00:00Z').toISOString();
+const end = new Date('2023-03-31T23:59:59Z').toISOString();
+
+// Create a FreebusyRequest object that includes calendar IDs of calendars to check
+// Set up request to check free/busy status for those calendars
+const request = {
+  timeMin: start,
+  timeMax: end,
+  timeZone: 'UTC',
+  items: [
+    {id: 'primary'},
+    {id: ''}
+    // add more calendars as needed
+  ],
+};
+
+// Call freebusy.query method with the request object
+const response = await calendar.freebusy.query({
+  requestBody: request,
+});
+
+// Extract free/busy status from calendars
+const busyTimes = response.data.calendars;
