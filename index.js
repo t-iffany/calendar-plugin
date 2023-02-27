@@ -104,27 +104,41 @@ async function listAvailability(auth) {
   // Create an instance of the calendar API and set its version and auth parameters
   const calendar = google.calendar({ version: 'v3', auth });
 
-  // Define the time range to check
-  const start = startOfDay(parseISO('2023-03-01T00:00:00Z'));
-  const end = endOfDay(parseISO('2023-03-05T23:59:59Z'));
+  // // Define the time range to check
+  // const start = startOfDay(parseISO('2023-03-03T00:00:00Z'));
+  // const end = endOfDay(parseISO('2023-03-04T23:59:59Z'));
+
+  // Define start and end times
+  const start = new Date('2023-03-02T09:00:00Z');
+  const end = new Date('2023-03-02T23:59:59Z');
 
   console.log('start: ', start);
   console.log('end: ', end);
+
+  // Get your own calendar's ID
+  const calendarId = 'primary';
+
+  // Add your friends' email addresses to this array
+  const friendEmails = ['udonthecoton@gmail.com'];
 
   // Create a FreebusyRequest object that includes calendar IDs of calendars to check
   // Set up request to check free/busy status for those calendars
   const request = {
     timeMin: start.toISOString(),
     timeMax: end.toISOString(),
-    timeZone: 'UTC',
+    // timeZone: 'UTC',
+    timeZone: 'America/Vancouver',
     items: [
-      { id: 'primary' },
-      // Add friend's calendar IDs to the request
-      // ...friendAvailability.map((availability) => {
-      //   return { id: availability.calendarId };
-      // })
-      { id: 'udonthecoton@gmail.com' },
-      // add more calendars as needed
+      { id: calendarId },
+      ...friendEmails.map((email) => {
+        return { id: email };
+      }),
+      // // Add friend's calendar IDs to the request
+      // // ...friendAvailability.map((availability) => {
+      // //   return { id: availability.calendarId };
+      // // })
+      // { id: 'udonthecoton@gmail.com' },
+      // // add more calendars as needed
     ],
   };
 
@@ -133,59 +147,141 @@ async function listAvailability(auth) {
     requestBody: request,
   });
 
+  console.log('response.data:', response.data)
+  console.log('busy: [Array]', response.data.calendars.primary.busy);
+  console.log('response.data.calendars:', response.data.calendars);
+
+
   // Extract free/busy status from calendars
   const busyTimes = response.data.calendars;
 
-  // Convert busy times to moment ranges
-  const busyRanges = Object.entries(busyTimes).map(([id, busy]) => {
-    // Check whether busy array is empty
-    if (Array.isArray(busy.busy) && busy.busy.length > 0) {
-      const busyStart = parseISO(busy.busy[0].start);
-      const busyEnd = parseISO(busy.busy[0].end);
-      return { start: startOfHour(busyStart), end: endOfHour(busyEnd) };
-    } else {
-      return null;
-    }
-  }).filter((busyRange) => {
-    return busyRange !== null;
-  });
+  // // Convert busy times to moment ranges
+  // const busyRanges = Object.entries(busyTimes).map(([id, busy]) => {
+  //   // Check whether busy array is empty
+  //   if (Array.isArray(busy.busy) && busy.busy.length > 0) {
+  //     const busyStart = parseISO(busy.busy[0].start);
+  //     const busyEnd = parseISO(busy.busy[0].end);
+  //     return { start: startOfHour(busyStart), end: endOfHour(busyEnd) };
+  //   } else {
+  //     return null;
+  //   }
+  // }).filter((busyRange) => {
+  //   return busyRange !== null;
+  // });
 
-  console.log('busyRanges:', busyRanges);
+  // console.log('busyRanges:', busyRanges);
 
-  // Find overlapping ranges
-  const overlaps = busyRanges.reduce((acc, curr) => {
-    const overlappingStart = acc.start > curr.start ? acc.start : curr.start;
-    const overlappingEnd = acc.end < curr.end ? acc.end : curr.end;
-    if (overlappingStart < overlappingEnd) {
-      return { start: overlappingStart, end: overlappingEnd };
-    } else {
-      return null;
-    }
-  });
+  // // Find overlapping ranges
+  // const overlaps = busyRanges.reduce((acc, curr) => {
+  //   const overlappingStart = acc.start > curr.start ? acc.start : curr.start;
+  //   const overlappingEnd = acc.end < curr.end ? acc.end : curr.end;
+  //   if (overlappingStart < overlappingEnd) {
+  //     return { start: overlappingStart, end: overlappingEnd };
+  //   } else {
+  //     return null;
+  //   }
+  // });
 
-  console.log('overlaps:', overlaps);
+  // console.log('overlaps:', overlaps);
 
-  // Convert overlapping ranges to array of suggested meeting times (days all users are available)
-  // after removing the busy slots of both calendars
-  const meetingTimes = [];
-  let currentDate = overlaps.start;
-  while (currentDate <= overlaps.end) {
-    const currentDayStart = startOfDay(currentDate);
-    const currentDayEnd = endOfDay(currentDate);
-    const isAvailable = busyRanges.every((busyRange) => {
-      return !isWithinInterval(currentDayStart, { start: busyRange.start, end: busyRange.end }) && !isWithinInterval(currentDayEnd, { start: busyRange.start, end: busyRange.end });
+  // // Convert overlapping ranges to array of suggested meeting times (days all users are available)
+  // // after removing the busy slots of both calendars
+  // const meetingTimes = [];
+  // let currentDate = overlaps.start;
+  // while (currentDate <= overlaps.end) {
+  //   const currentDayStart = startOfDay(currentDate);
+  //   const currentDayEnd = endOfDay(currentDate);
+  //   const isAvailable = busyRanges.every((busyRange) => {
+  //     return !isWithinInterval(currentDayStart, { start: busyRange.start, end: busyRange.end }) && !isWithinInterval(currentDayEnd, { start: busyRange.start, end: busyRange.end });
+  //   });
+  //   if (isAvailable) {
+  //     meetingTimes.push({ start: currentDayStart.toISOString(), end: currentDayEnd.toISOString() });
+  //   }
+  //   currentDate = new Date(currentDate.getTime() + 24 * 60 * 60 * 1000);
+  // }
+
+
+
+
+
+//   // Define busy ranges
+// const busyRanges = [
+//   { start: new Date('2023-03-02T20:00:00Z'), end: new Date('2023-03-02T21:59:59Z') },
+// ];
+
+// // Check for overlapping times
+// const overlaps = busyRanges.find(range => {
+//   return (
+//     (range.start >= start && range.start <= end) ||
+//     (range.end >= start && range.end <= end) ||
+//     (range.start <= start && range.end >= end)
+//   );
+// });
+
+// // Calculate available meeting times
+// const meetingTimes = [];
+// if (!overlaps) {
+//   const startTime = start.getTime();
+//   const endTime = end.getTime();
+//   let time = startTime;
+//   while (time < endTime) {
+//     const start = new Date(time);
+//     const end = new Date(time + 60 * 60 * 1000); // add 1 hour
+//     meetingTimes.push({ start, end });
+//     time += 60 * 60 * 1000; // add 1 hour
+//   }
+// }
+
+//   console.log('meetingTimes:', meetingTimes);
+//   return meetingTimes;
+// }
+
+// authorize().then((auth) => {
+//   listAvailability(auth).then((meetingTimes) => {
+//     console.log(meetingTimes);
+//   }).catch(console.error);
+// }).catch(console.error);
+
+
+// Find the intersection of free times between your calendar and your friends' calendars
+let freeTimes = busyTimes[calendarId].busy.map((busy) => {
+  return { start: busy.start, end: busy.end };
+});
+
+console.log('freeTimes:', freeTimes)
+
+friendEmails.forEach((email) => {
+  const friendBusy = busyTimes[email].busy;
+  freeTimes = freeTimes.filter((busy) => {
+    return friendBusy.every((fBusy) => {
+      const fBusyStart = new Date(fBusy.start);
+      const fBusyEnd = new Date(fBusy.end);
+      const busyStart = new Date(busy.start);
+      const busyEnd = new Date(busy.end);
+      return (
+        busyEnd <= fBusyStart.getTime() ||
+        busyStart >= fBusyEnd.getTime()
+      );
     });
-    if (isAvailable) {
-      meetingTimes.push({ start: currentDayStart.toISOString(), end: currentDayEnd.toISOString() });
-    }
-    currentDate = new Date(currentDate.getTime() + 24 * 60 * 60 * 1000);
-  }
-  console.log('meetingTimes:', meetingTimes);
-  return meetingTimes;
+  });
+});
+
+console.log('freeTimes:', freeTimes);
+console.log('friendBusy:', friendBusy);
+
+// Log the mutual free times
+console.log('Mutual free times:');
+freeTimes.forEach((free) => {
+  console.log(`${free.start} - ${free.end}`);
+});
+
 }
 
-authorize().then((auth) => {
-  listAvailability(auth).then((meetingTimes) => {
-    console.log(meetingTimes);
-  }).catch(console.error);
-}).catch(console.error);
+authorize()
+  .then(listAvailability)
+  .catch((err) => {
+    console.error(err);
+  });
+
+
+
