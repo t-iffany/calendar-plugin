@@ -121,6 +121,10 @@ async function listAvailability(auth) {
   // Add your friends' email addresses to this array
   const friendEmails = ['udonthecoton@gmail.com'];
 
+  // Get the timezone of the calendar
+  // const calendarResult = await calendar.calendars.get({ calendarId });
+  // const timezone = calendarResult.data.timeZone;
+
   // Create a FreebusyRequest object that includes calendar IDs of calendars to check
   // Set up request to check free/busy status for those calendars
   const request = {
@@ -128,6 +132,7 @@ async function listAvailability(auth) {
     timeMax: end.toISOString(),
     // timeZone: 'UTC',
     timeZone: 'America/Vancouver',
+    // timeZone: timezone,
     items: [
       { id: calendarId },
       ...friendEmails.map((email) => {
@@ -147,7 +152,7 @@ async function listAvailability(auth) {
     requestBody: request,
   });
 
-  console.log('response.data:', response.data)
+  console.log('response.data:', response.data);
   console.log('busy: [Array]', response.data.calendars.primary.busy);
   console.log('response.data.calendars:', response.data.calendars);
 
@@ -204,76 +209,155 @@ async function listAvailability(auth) {
 
 
 
-//   // Define busy ranges
-// const busyRanges = [
-//   { start: new Date('2023-03-02T20:00:00Z'), end: new Date('2023-03-02T21:59:59Z') },
-// ];
+  //   // Define busy ranges
+  // const busyRanges = [
+  //   { start: new Date('2023-03-02T20:00:00Z'), end: new Date('2023-03-02T21:59:59Z') },
+  // ];
 
-// // Check for overlapping times
-// const overlaps = busyRanges.find(range => {
-//   return (
-//     (range.start >= start && range.start <= end) ||
-//     (range.end >= start && range.end <= end) ||
-//     (range.start <= start && range.end >= end)
-//   );
-// });
+  // // Check for overlapping times
+  // const overlaps = busyRanges.find(range => {
+  //   return (
+  //     (range.start >= start && range.start <= end) ||
+  //     (range.end >= start && range.end <= end) ||
+  //     (range.start <= start && range.end >= end)
+  //   );
+  // });
 
-// // Calculate available meeting times
-// const meetingTimes = [];
-// if (!overlaps) {
-//   const startTime = start.getTime();
-//   const endTime = end.getTime();
-//   let time = startTime;
-//   while (time < endTime) {
-//     const start = new Date(time);
-//     const end = new Date(time + 60 * 60 * 1000); // add 1 hour
-//     meetingTimes.push({ start, end });
-//     time += 60 * 60 * 1000; // add 1 hour
-//   }
-// }
+  // // Calculate available meeting times
+  // const meetingTimes = [];
+  // if (!overlaps) {
+  //   const startTime = start.getTime();
+  //   const endTime = end.getTime();
+  //   let time = startTime;
+  //   while (time < endTime) {
+  //     const start = new Date(time);
+  //     const end = new Date(time + 60 * 60 * 1000); // add 1 hour
+  //     meetingTimes.push({ start, end });
+  //     time += 60 * 60 * 1000; // add 1 hour
+  //   }
+  // }
 
-//   console.log('meetingTimes:', meetingTimes);
-//   return meetingTimes;
-// }
+  //   console.log('meetingTimes:', meetingTimes);
+  //   return meetingTimes;
+  // }
 
-// authorize().then((auth) => {
-//   listAvailability(auth).then((meetingTimes) => {
-//     console.log(meetingTimes);
-//   }).catch(console.error);
-// }).catch(console.error);
+  // authorize().then((auth) => {
+  //   listAvailability(auth).then((meetingTimes) => {
+  //     console.log(meetingTimes);
+  //   }).catch(console.error);
+  // }).catch(console.error);
 
 
-// Find the intersection of free times between your calendar and your friends' calendars
-let freeTimes = busyTimes[calendarId].busy.map((busy) => {
-  return { start: busy.start, end: busy.end };
-});
 
-console.log('freeTimes:', freeTimes)
 
-friendEmails.forEach((email) => {
-  const friendBusy = busyTimes[email].busy;
-  freeTimes = freeTimes.filter((busy) => {
-    return friendBusy.every((fBusy) => {
-      const fBusyStart = new Date(fBusy.start);
-      const fBusyEnd = new Date(fBusy.end);
-      const busyStart = new Date(busy.start);
-      const busyEnd = new Date(busy.end);
-      return (
-        busyEnd <= fBusyStart.getTime() ||
-        busyStart >= fBusyEnd.getTime()
-      );
-    });
+
+
+  // // Find the intersection of free times between your calendar and your friends' calendars
+  // let freeTimes = busyTimes[calendarId].busy.map((busy) => {
+  //   return { start: busy.start, end: busy.end };
+  // });
+
+  // console.log('freeTimes:', freeTimes)
+
+  // friendEmails.forEach((email) => {
+  //   console.log('busyTimes[primary].busy', busyTimes['primary'].busy);
+  //   console.log('busyTimes[email].busy', busyTimes[email].busy);
+  //   const friendBusy = busyTimes[email].busy;
+  //   freeTimes = freeTimes.filter((busy) => {
+  //     return friendBusy.every((fBusy) => {
+  //       const fBusyStart = new Date(fBusy.start);
+  //       const fBusyEnd = new Date(fBusy.end);
+  //       const busyStart = new Date(busy.start);
+  //       const busyEnd = new Date(busy.end);
+  //       return (
+  //         busyEnd <= fBusyStart.getTime() ||
+  //         busyStart >= fBusyEnd.getTime()
+  //       );
+  //     });
+  //   });
+
+  // console.log('friendBusy:', friendBusy);  
+  // });
+
+  // console.log('freeTimes:', freeTimes);
+
+
+  // // Log the mutual free times
+  // console.log('Mutual free times:');
+  // freeTimes.forEach((free) => {
+  //   console.log(`${free.start} - ${free.end}`);
+  // });
+
+
+
+
+  // Calculate free slots in primary calendar
+  let primaryBusy = busyTimes[calendarId].busy.map((busy) => {
+    return { start: busy.start, end: busy.end };
   });
-});
 
-console.log('freeTimes:', freeTimes);
-console.log('friendBusy:', friendBusy);
+  console.log('primaryBusy:', primaryBusy);
 
-// Log the mutual free times
-console.log('Mutual free times:');
-freeTimes.forEach((free) => {
-  console.log(`${free.start} - ${free.end}`);
-});
+  // Store the free slots in the primary calendar
+  let primaryFree = [];
+
+  // Define and initialize startTime and endTime with a value 
+  const startTime = start.toISOString();
+  const endTime = end.toISOString();
+
+  if (primaryBusy.length === 0) {
+    // If the primary calendar is empty, the whole day is free
+    primaryFree.push({ start: startTime, end: endTime });
+  } else {
+    // Otherwise, find gaps between busy times
+    for (let i = 0; i < primaryBusy.length - 1; i++) {
+      primaryFree.push({ start: primaryBusy[i].end, end: primaryBusy[i + 1].start });
+    }
+    // Add free time before first busy slot
+    if (primaryBusy[0].start > startTime) {
+      primaryFree.unshift({ start: startTime, end: primaryBusy[0].start });
+    }
+    // Add free time after last busy slot
+    if (primaryBusy[primaryBusy.length - 1].end < endTime) {
+      primaryFree.push({ start: primaryBusy[primaryBusy.length - 1].end, end: endTime });
+    }
+  }
+
+  // Initialize freeTimes to primaryFree
+  let freeTimes = primaryFree;
+
+  console.log('freeTimes', primaryFree);
+
+  // Filter the free slots based on the busy times of each friend
+  friendEmails.forEach((email) => {
+
+    console.log('busyTimes[email].busy', busyTimes[email].busy);
+
+    const friendBusy = busyTimes[email].busy;
+
+    freeTimes = freeTimes.filter((free) => {
+      return friendBusy.every((fBusy) => {
+        const fBusyStart = new Date(fBusy.start);
+        const fBusyEnd = new Date(fBusy.end);
+        const freeStart = new Date(free.start);
+        const freeEnd = new Date(free.end);
+        return (
+          freeEnd <= fBusyStart.getTime() ||
+          freeStart >= fBusyEnd.getTime()
+        );
+      });
+    });
+    console.log('friendBusy:', friendBusy);
+  });
+
+  console.log('freeTimes:', freeTimes);
+
+  // Log the mutual free times
+  console.log('Mutual free times:');
+  freeTimes.forEach((free) => {
+    console.log(`${free.start} - ${free.end}`);
+  });
+
 
 }
 
@@ -282,6 +366,3 @@ authorize()
   .catch((err) => {
     console.error(err);
   });
-
-
-
